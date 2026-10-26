@@ -1,0 +1,11 @@
+node_modules/
+.portboard/
+*.log
+npm-debug.log*
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.vscode/
+.idea/

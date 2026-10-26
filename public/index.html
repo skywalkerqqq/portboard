@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portboard · 端口工作台</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230A1F33'/%3E%3Ctext x='16' y='23' font-family='Georgia' font-size='20' fill='%23fff' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #FAFBFC;
+    --surface: #FFFFFF;
+    --navy: #0A1F33;
+    --navy-2: #16324F;
+    --ink: #1B2A3A;
+    --ink-2: #5A6B7D;
+    --ink-3: #77889A;
+    --line: #E3E8EE;
+    --line-2: #EEF2F6;
+    --accent: #0E4DA4;
+    --accent-bg: #EFF4FC;
+    --red: #B42318;
+    --red-bg: #FDF1F0;
+    --green: #067647;
+    --green-bg: #ECF8F2;
+    --amber: #B54708;
+    --amber-bg: #FEF5EC;
+    --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+    --serif: "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+    --sans: "Noto Sans SC", "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 36px 28px 72px; }
+  td { font-variant-numeric: tabular-nums; }
+
+  /* ---------- 头部 ---------- */
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 2px solid var(--navy); flex-wrap: wrap; }
+  .brand h1 { font-family: var(--serif); font-size: 30px; font-weight: 700; letter-spacing: .5px; color: var(--navy); }
+  .brand h1 em { font-style: normal; color: var(--accent); }
+  .brand .sub { margin-top: 5px; font-size: 12.5px; color: var(--ink-2); letter-spacing: .3px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .head-right { display: flex; align-items: flex-start; gap: 16px; }
+  .sys { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); text-align: right; line-height: 1.65; }
+  .sys b { color: var(--ink); font-weight: 600; }
+  .ctrl { display: flex; flex-direction: column; gap: 7px; align-items: flex-end; }
+  .ctrl-row { display: flex; align-items: center; gap: 8px; }
+  .ctrl select { padding: 5px 8px; font-size: 12px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); display: inline-block; }
+  .dot.live { background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); }
+  .dot.paused { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-bg); }
+
+  /* ---------- 提示条 ---------- */
+  .banner { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding: 11px 16px; background: var(--accent-bg); border-left: 3px solid var(--accent); font-size: 13px; color: var(--navy-2); }
+  .banner .grow { flex: 1; }
+  .banner.warn { background: var(--amber-bg); border-left-color: var(--amber); }
+  .err { margin-top: 18px; padding: 11px 16px; background: var(--red-bg); border-left: 3px solid var(--red); color: var(--red); font-size: 13px; font-family: var(--mono); }
+
+  /* ---------- 统计卡 ---------- */
+  .stats { display: grid; grid-template-columns: 1.15fr 1fr 1fr 1fr 1fr 1fr; gap: 0; margin-top: 22px; border: 1px solid var(--line); background: var(--surface); }
+  .stat { padding: 15px 18px; border-right: 1px solid var(--line); }
+  .stat:last-child { border-right: none; }
+  .stat .k { font-size: 11px; letter-spacing: 1.3px; color: var(--ink-2); text-transform: uppercase; }
+  .stat .v { margin-top: 5px; font-family: var(--mono); font-size: 25px; font-weight: 600; color: var(--navy); line-height: 1.1; }
+  .stat .s { margin-top: 3px; font-size: 11.5px; color: var(--ink-3); }
+  .stat.lead { background: var(--navy); }
+  .stat.lead .k { color: #9FB3C8; }
+  .stat.lead .v { color: #fff; }
+  .stat.lead .s { color: #7E93A8; }
+  .stat.hot .v { color: var(--amber); }
+  .stat.alert .v { color: var(--accent); }
+
+  /* ---------- 工具栏 ---------- */
+  .toolbar { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; flex-wrap: wrap; }
+  .search { flex: 1; min-width: 240px; position: relative; }
+  .search input { width: 100%; padding: 9px 14px 9px 34px; border: 1px solid var(--line); background: var(--surface); font-family: var(--mono); font-size: 13px; color: var(--ink); outline: none; }
+  .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+  .search::before { content: "⌕"; position: absolute; left: 11px; top: 50%; transform: translateY(-54%); font-size: 18px; color: var(--ink-3); }
+  .search kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); border: 1px solid var(--line); padding: 1px 5px; background: var(--bg); }
+  select { padding: 9px 10px; border: 1px solid var(--line); background: var(--surface); font-family: var(--sans); font-size: 13px; color: var(--ink); outline: none; cursor: pointer; }
+  select:focus { border-color: var(--accent); }
+  .chip { border: 1px solid var(--line); background: var(--surface); padding: 8px 12px; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .chip .n { font-family: var(--mono); font-size: 11px; opacity: .8; margin-left: 3px; }
+  .toolbar .count { font-family: var(--mono); font-size: 12px; color: var(--ink-2); margin-left: auto; }
+  .btn { border: 1px solid var(--line); background: var(--surface); padding: 6px 11px; font-family: var(--sans); font-size: 12px; color: var(--ink-2); cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.danger:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+  .btn.confirm { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
+  .btn.confirm:hover { background: #8F1D13; color: #fff; }
+  .btn.force { background: #6B0F08; border-color: #6B0F08; color: #fff; font-weight: 600; }
+  .btn.sm { padding: 4px 8px; font-size: 11.5px; }
+
+  /* ---------- 表格 ---------- */
+  .table-box { border: 1px solid var(--line); background: var(--surface); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { position: sticky; top: 0; z-index: 2; font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-2); text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--navy); background: #F2F5F9; cursor: pointer; user-select: none; white-space: nowrap; }
+  thead th.nosort { cursor: default; }
+  thead th .arr { font-size: 8px; color: var(--accent); margin-left: 3px; }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid var(--line-2); vertical-align: middle; white-space: nowrap; }
+  tbody tr.row { cursor: pointer; transition: background .12s; }
+  tbody tr.row:hover { background: #F7FAFD; }
+  tbody tr.row.open { background: #F4F8FD; }
+  tbody tr.row.flash { animation: flash 1.4s ease-out 4; }
+  tbody tr.row.pending { background: var(--red-bg); }
+  @keyframes flash { 0%, 100% { background: transparent; } 40% { background: #FFF7E6; } }
+  tbody tr.row td:first-child { box-shadow: inset 3px 0 0 transparent; }
+  tbody tr.row.is-new td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+  .port-cell { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--navy); }
+  .svc { font-size: 11px; color: var(--accent); margin-left: 6px; letter-spacing: .2px; }
+  .proto { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 6px; letter-spacing: .8px; }
+  .proto.TCP { background: var(--accent); color: #fff; }
+  .proto.UDP { background: var(--navy-2); color: #fff; }
+  .scope { font-size: 11px; padding: 2px 7px; letter-spacing: .2px; }
+  .scope.wildcard { background: var(--amber-bg); color: var(--amber); font-weight: 600; }
+  .scope.iface { background: var(--accent-bg); color: var(--accent); }
+  .scope.loopback, .scope.linklocal { background: var(--green-bg); color: var(--green); }
+  .proc { display: flex; align-items: center; gap: 7px; }
+  .proc .name { font-weight: 500; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+  .proc .pid { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .tag { font-size: 10px; padding: 1px 5px; letter-spacing: .3px; }
+  .tag.guard { background: #F3F4F6; color: #4B5563; border: 1px solid #D8DEE6; }
+  .tag.warn { background: var(--amber-bg); color: var(--amber); }
+  .tag.self { background: var(--accent-bg); color: var(--accent); }
+  .conn { font-family: var(--mono); font-size: 12px; }
+  .conn .est { color: var(--ink); font-weight: 600; }
+  .conn .tw { color: var(--ink-3); font-size: 11px; margin-left: 4px; }
+  .conn .idle { color: var(--ink-3); }
+  .conn .out { color: var(--accent); font-size: 10.5px; margin-left: 4px; }
+  .first { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .addr { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); max-width: 230px; overflow: hidden; text-overflow: ellipsis; }
+  .actions { display: flex; gap: 5px; justify-content: flex-end; }
+  .empty { text-align: center; padding: 56px 0; color: var(--ink-3); font-size: 13px; }
+
+  /* ---------- 详情 ---------- */
+  tr.detail td { background: #F7FAFD; padding: 0; border-bottom: 1px solid var(--line); }
+  .detail-in { padding: 16px 18px 18px 20px; border-left: 3px solid var(--accent); }
+  .dgrid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 22px; }
+  .dk { font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-3); margin: 12px 0 5px; }
+  .dk:first-child { margin-top: 0; }
+  .dcmd { font-family: var(--mono); font-size: 11.5px; color: var(--navy-2); background: var(--surface); border: 1px solid var(--line); padding: 9px 11px; white-space: pre-wrap; word-break: break-all; line-height: 1.65; max-height: 92px; overflow: auto; }
+  .dval { font-size: 12px; color: var(--ink-2); word-break: break-all; }
+  .dval.mono { font-family: var(--mono); font-size: 11.5px; }
+  .kv { display: grid; grid-template-columns: 68px 1fr; gap: 4px 12px; font-size: 12px; }
+  .kv dt { color: var(--ink-3); font-size: 11.5px; }
+  .kv dd { color: var(--ink-2); word-break: break-all; }
+  .chipset { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pchip { font-family: var(--mono); font-size: 11.5px; padding: 3px 8px; background: var(--surface); border: 1px solid var(--line); color: var(--navy-2); }
+  .pchip.cur { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  table.mini { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  table.mini th { text-align: left; color: var(--ink-3); font-weight: 500; font-size: 10.5px; letter-spacing: .8px; padding: 0 8px 5px 0; border: none; background: none; cursor: default; position: static; text-transform: uppercase; }
+  table.mini td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line-2); font-family: var(--mono); color: var(--ink-2); }
+  table.mini td.st { font-family: var(--sans); font-size: 10.5px; }
+  .st.ESTABLISHED { color: var(--green); }
+  .st.TIME_WAIT, .st.CLOSE_WAIT { color: var(--ink-3); }
+  .dactions { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .warnline { margin-top: 10px; padding: 8px 11px; background: var(--amber-bg); color: var(--amber); font-size: 12px; border-left: 2px solid var(--amber); }
+  .probe { margin-top: 10px; padding: 9px 11px; background: var(--surface); border: 1px solid var(--line); font-family: var(--mono); font-size: 11.5px; color: var(--navy-2); line-height: 1.7; }
+
+  /* ---------- 抽屉 ---------- */
+  .drawer { position: fixed; top: 0; right: 0; width: 400px; max-width: 92vw; height: 100%; background: var(--surface); border-left: 1px solid var(--line); box-shadow: -12px 0 32px rgba(10,31,51,.09); transform: translateX(101%); transition: transform .22s ease; z-index: 60; display: flex; flex-direction: column; }
+  .drawer.on { transform: none; }
+  .drawer h3 { font-family: var(--serif); font-size: 16px; color: var(--navy); padding: 18px 18px 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+  .drawer .list { flex: 1; overflow: auto; }
+  .ev { display: grid; grid-template-columns: 62px 1fr; gap: 8px; padding: 9px 18px; border-bottom: 1px solid var(--line-2); font-size: 12px; }
+  .ev .t { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .ev .b { color: var(--ink-2); }
+  .ev .b b { color: var(--navy); font-family: var(--mono); }
+  .ev.open .b b { color: var(--accent); }
+  .ev.close .b b { color: var(--ink-3); text-decoration: line-through; }
+
+  /* ---------- Toast ---------- */
+  #toast-box { position: fixed; right: 24px; bottom: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 99; }
+  .toast { padding: 10px 15px; background: var(--navy); color: #fff; font-size: 12.5px; border-left: 3px solid var(--accent); min-width: 230px; max-width: 400px; animation: slide-in .22s ease; font-family: var(--mono); line-height: 1.55; }
+  .toast.err { border-left-color: #F97066; background: #4A1108; }
+  .toast.ok { border-left-color: #3DBE8B; }
+  .toast.warn { border-left-color: #F5A623; }
+  @keyframes slide-in { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  footer { margin-top: 16px; font-size: 11.5px; color: var(--ink-3); display: flex; justify-content: space-between; font-family: var(--mono); flex-wrap: wrap; gap: 8px; }
+  .link { color: var(--accent); cursor: pointer; text-decoration: none; border-bottom: 1px dotted var(--accent); }
+  @media (max-width: 1080px) {
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .stat { border-bottom: 1px solid var(--line); }
+    .dgrid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 22px 14px 60px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .addr, .first { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Port<em>board</em></h1>
+      <div class="sub">
+        <span>本机端口监听工作台</span>
+        <span style="color:var(--line)">|</span>
+        <span id="ver">v2.0</span>
+        <span style="color:var(--line)">|</span>
+        <span>netstat → 进程 → 连接 → 变更审计</span>
+      </div>
+    </div>
+    <div class="head-right">
+      <div class="sys" id="sys-info">—</div>
+      <div class="ctrl">
+        <div class="ctrl-row">
+          <span class="dot live" id="dot"></span>
+          <select id="interval">
+            <option value="2000">2s</option>
+            <option value="5000" selected>5s</option>
+            <option value="10000">10s</option>
+            <option value="30000">30s</option>
+          </select>
+          <button class="btn" id="pause">暂停</button>
+        </div>
+        <div class="ctrl-row">
+          <button class="btn sm" id="notify">新端口提醒 关</button>
+          <button class="btn sm" id="events-btn">变更记录</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="banner warn" id="banner" hidden>
+    <span class="grow" id="banner-text"></span>
+    <button class="btn sm" id="banner-filter">只看新增</button>
+    <button class="btn sm" id="banner-close">知道了</button>
+  </div>
+  <div class="err" id="err" hidden></div>
+
+  <section class="stats" id="stats"></section>
+
+  <div class="toolbar">
+    <div class="search">
+      <input id="q" type="text" placeholder="搜索端口 / 进程 / PID / 服务 / 地址" spellcheck="false" autocomplete="off">
+      <kbd>/</kbd>
+    </div>
+    <select id="f-proto">
+      <option value="">全部协议</option><option value="TCP">TCP</option><option value="UDP">UDP</option>
+    </select>
+    <select id="f-scope">
+      <option value="">全部范围</option>
+      <option value="wildcard">对外暴露</option>
+      <option value="iface">内网</option>
+      <option value="loopback">仅本机</option>
+    </select>
+    <select id="f-state">
+      <option value="">全部状态</option><option value="active">有连接</option><option value="idle">空闲</option>
+    </select>
+    <button class="chip" id="only-new">仅新增<span class="n" id="n-new"></span></button>
+    <button class="chip" id="only-watch">收藏<span class="n" id="n-watch"></span></button>
+    <button class="chip" id="hide-sys">隐藏系统</button>
+    <span class="count" id="row-count"></span>
+    <button class="btn" id="export">导出 CSV</button>
+  </div>
+
+  <div class="table-box">
+    <table>
+      <colgroup>
+        <col style="width:132px"><col style="width:64px"><col style="width:78px"><col>
+        <col style="width:132px"><col style="width:92px"><col style="width:210px"><col style="width:250px">
+      </colgroup>
+      <thead><tr>
+        <th data-sort="port">端口<span class="arr"></span></th>
+        <th data-sort="proto">协议<span class="arr"></span></th>
+        <th data-sort="scope">暴露<span class="arr"></span></th>
+        <th data-sort="process">进程<span class="arr"></span></th>
+        <th data-sort="connections">连接<span class="arr"></span></th>
+        <th data-sort="firstSeen">首见<span class="arr"></span></th>
+        <th class="nosort">监听地址</th>
+        <th class="nosort" style="text-align:right">操作</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>没有匹配的端口</div>
+  </div>
+
+  <footer>
+    <span id="updated-at">—</span>
+    <span id="perf">—</span>
+  </footer>
+</div>
+
+<aside class="drawer" id="drawer">
+  <h3>变更记录 <button class="btn sm" id="drawer-close">关闭</button></h3>
+  <div class="list" id="ev-list"></div>
+</aside>
+
+<div id="toast-box"></div>
+
+<script>
+const TOKEN = '__PB_TOKEN__';
+const $ = s => document.querySelector(s);
+const S = {
+  data: null, sys: null, prevKeys: null,
+  sortKey: 'port', sortDir: 1,
+  q: '', fp: '', fs: '', fst: '',
+  onlyNew: false, onlyWatch: false, hideSys: false,
+  expanded: new Set(),
+  watch: new Set(JSON.parse(localStorage.getItem('pb.watch') || '[]')),
+  pending: new Set(),        // 待确认终止的 pid
+  forced: new Set(),         // 已被要求强制终止的 pid
+  details: new Map(),        // pid -> { at, data }
+  probes: new Map(),         // `${proto}/${port}` -> result
+  flash: new Map(),          // key -> ts
+  auto: true, interval: 5000, countdown: 5,
+  notifyOn: localStorage.getItem('pb.notify') === '1',
+  err: null,
+};
+const keyOf = p => `${p.proto}/${p.port}/${p.pid}`;
+const wkeyOf = p => `${p.proto}/${p.port}`;
+
+// ---------- API ----------
+async function api(path, opts = {}) {
+  const r = await fetch(path, {
+    ...opts,
+    headers: { 'X-Portboard-Token': TOKEN, ...(opts.headers || {}) },
+  });
+  const text = await r.text();
+  let j;
+  try { j = text ? JSON.parse(text) : {}; } catch { throw new Error('响应不是 JSON：' + text.slice(0, 80)); }
+  if (!r.ok || j.ok === false) { const e = new Error(j.error || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+  return j;
+}
+
+// ---------- 刷新 ----------
+async function refresh(manual = false) {
+  try {
+    const [d, sys] = await Promise.all([
+      api('/api/ports'),
+      S.sys ? Promise.resolve(S.sys) : api('/api/system'),
+    ]);
+    S.err = null;
+    S.sys = sys;
+    detectNew(d);
+    S.data = d;
+    render();
+    S.countdown = S.interval / 1000;
+    if (manual) toast('已刷新');
+  } catch (e) {
+    S.err = e.message;
+    renderError();
+  }
+}
+
+function detectNew(d) {
+  const keys = new Set(d.ports.map(keyOf));
+  if (!S.prevKeys) { S.prevKeys = keys; return; }
+  const fresh = d.ports.filter(p => !S.prevKeys.has(keyOf(p)));
+  S.prevKeys = keys;
+  if (!fresh.length) return;
+  const now = Date.now();
+  for (const p of fresh) S.flash.set(keyOf(p), now);
+  // 只对「对外 + 非常用临时端口」告警：动态端口区间随系统服务频繁开关，属于噪声
+  const exposed = fresh.filter(p => p.scope !== 'loopback' && !p.ephemeral);
+  if (!exposed.length) return;
+  const label = exposed.slice(0, 4).map(p => `${p.port}/${p.proto}`).join('、') + (exposed.length > 4 ? ' 等' : '');
+  showBanner(`检测到 ${exposed.length} 个新的对外监听端口：${label}（进程 ${exposed[0].process}）`);
+  if (S.notifyOn && 'Notification' in window && Notification.permission === 'granted') {
+    new Notification('Portboard · 新端口监听', { body: label + ' · ' + exposed[0].process, tag: 'pb-new' });
+  }
+}
+
+function showBanner(text) {
+  $('#banner-text').textContent = text;
+  $('#banner').hidden = false;
+}
+
+// ---------- 渲染 ----------
+function renderError() {
+  const el = $('#err');
+  if (!S.err) { el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = '采集失败：' + S.err + ' — 服务可能已退出，或端口被占用。正在重试…';
+}
+
+function renderStats() {
+  const s = S.data?.summary || {};
+  const cards = [
+    ['监听端口', s.listeners ?? '—', `涉及 ${s.processes ?? '—'} 个进程`, 'lead'],
+    ['TCP', s.tcp ?? '—', 'LISTENING 状态', ''],
+    ['UDP', s.udp ?? '—', '含无连接端点', ''],
+    ['活跃连接', s.established ?? '—', 'ESTABLISHED 总数', ''],
+    ['对外暴露', s.exposed ?? '—', '绑定 0.0.0.0 / ::', s.exposed ? 'hot' : ''],
+    ['会话内新增', s.fresh ?? '—', '启动后出现', s.fresh ? 'alert' : ''],
+  ];
+  $('#stats').innerHTML = cards.map(([k, v, sub, cls]) =>
+    `<div class="stat ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`
+  ).join('');
+}
+
+function filtered() {
+  const q = S.q.trim().toLowerCase();
+  let rows = (S.data?.ports || []).filter(p => {
+    if (S.fp && p.proto !== S.fp) return false;
+    if (S.fs && p.scope !== S.fs) return false;
+    if (S.fst === 'active' && !p.connections) return false;
+    if (S.fst === 'idle' && p.connections) return false;
+    if (S.onlyNew && !(p.isNew && !p.ephemeral)) return false;
+    if (S.onlyWatch && !S.watch.has(wkeyOf(p))) return false;
+    if (S.hideSys && (p.risk === 'blocked' || p.risk === 'self')) return false;
+    if (!q) return true;
+    return String(p.port).includes(q)
+      || p.process.toLowerCase().includes(q)
+      || String(p.pid).includes(q)
+      || (p.service || '').toLowerCase().includes(q)
+      || p.addr.toLowerCase().includes(q)
+      || (p.exe || '').toLowerCase().includes(q);
+  });
+  const k = S.sortKey, dir = S.sortDir;
+  rows.sort((a, b) => {
+    let x = a[k], y = b[k];
+    if (k === 'scope') { const rank = { wildcard: 3, iface: 2, linklocal: 1, loopback: 0 }; x = rank[x]; y = rank[y]; }
+    if (k === 'process') return String(x).localeCompare(String(y), 'zh') * dir;
+    return (x > y ? 1 : x < y ? -1 : 0) * dir || a.port - b.port;
+  });
+  return rows;
+}
+
+function ago(ts) {
+  const d = Date.now() - ts;
+  if (d < 0) return '—';
+  if (d < 8000) return '刚刚';
+  if (d < 60000) return Math.floor(d / 1000) + ' 秒前';
+  if (d < 3600000) return Math.floor(d / 60000) + ' 分钟前';
+  if (d < 86400000) return Math.floor(d / 3600000) + ' 小时前';
+  return Math.floor(d / 86400000) + ' 天前';
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+const SCOPE_TEXT = { wildcard: '对外', iface: '内网', loopback: '本机', linklocal: '本机' };
+
+function render() {
+  renderError();
+  if (!S.data) { $('#tbody').innerHTML = `<tr><td colspan="8" class="empty">正在采集…</td></tr>`; return; }
+  renderStats();
+
+  const all = S.data.ports;
+  const rows = filtered();
+  $('#row-count').textContent = `${rows.length} / ${all.length} 条`;
+  $('#n-new').textContent = all.filter(p => p.isNew && !p.ephemeral).length || '';
+  $('#n-watch').textContent = all.filter(p => S.watch.has(wkeyOf(p))).length || '';
+  $('#empty').hidden = rows.length > 0;
+
+  const now = Date.now();
+  for (const [k, ts] of S.flash) if (now - ts > 8000) S.flash.delete(k);
+
+  const html = [];
+  for (const p of rows) {
+    const k = keyOf(p);
+    const wk = wkeyOf(p);
+    const open = S.expanded.has(k);
+    const isPending = S.pending.has(p.pid);
+    const cls = [
+      'row',
+      open ? 'open' : '',
+      p.isNew && !p.ephemeral ? 'is-new' : '',
+      S.flash.has(k) ? 'flash' : '',
+      isPending ? 'pending' : '',
+    ].filter(Boolean).join(' ');
+    const st = p.states || {};
+    const tw = st.TIME_WAIT || 0;
+    const watched = S.watch.has(wk);
+    const guardTag = p.risk === 'self' ? '<span class="tag self">监控自身</span>'
+      : p.risk === 'blocked' ? '<span class="tag guard">受保护</span>'
+      : p.risk === 'caution' ? '<span class="tag warn">谨慎</span>' : '';
+    const firstSeen = (S.data.startedAt && p.firstSeen - S.data.startedAt < 3000) ? '启动时' : ago(p.firstSeen);
+    const name = p.process.length > 24 ? p.process.slice(0, 24) + '…' : p.process;
+
+    html.push(`<tr class="${cls}" data-key="${k}">
+      <td><span class="port-cell">${p.port}</span>${watched ? ' <span style="color:#B54708">•</span>' : ''}${p.service ? `<span class="svc">${esc(p.service)}</span>` : ''}</td>
+      <td><span class="proto ${p.proto}">${p.proto}</span></td>
+      <td><span class="scope ${p.scope}">${SCOPE_TEXT[p.scope] || p.scope}</span></td>
+      <td><div class="proc"><span class="name" title="${esc(p.exe || p.process)}">${esc(name)}</span><span class="pid">${p.pid}${p.extraPids.length ? '+' + p.extraPids.length : ''}</span>${guardTag}</div></td>
+      <td><span class="conn">${p.connections ? `<span class="est">${p.connections}</span>` : '<span class="idle">空闲</span>'}${tw ? `<span class="tw">${tw} tw</span>` : ''}</span></td>
+      <td class="first">${firstSeen}</td>
+      <td class="addr" title="${esc(p.addr)}">${esc(p.addr)}</td>
+      <td><div class="actions">
+        ${p.proto === 'TCP' ? `<button class="btn sm" data-act="open" data-key="${k}">打开</button>` : ''}
+        ${p.proto === 'TCP' ? `<button class="btn sm" data-act="probe" data-key="${k}">探测</button>` : ''}
+        <button class="btn sm" data-act="copy" data-key="${k}">复制</button>
+        <button class="btn sm" data-act="detail" data-key="${k}">${open ? '收起' : '详情'}</button>
+        ${isPending
+          ? (p.risk === 'blocked'
+              ? `<button class="btn force sm" data-act="kill-force" data-key="${k}">强制终止 ${p.pid}</button>`
+              : `<button class="btn confirm sm" data-act="kill-do" data-key="${k}">确认终止 ${p.pid}</button>`)
+            + `<button class="btn sm" data-act="cancel" data-key="${k}">取消</button>`
+          : `<button class="btn danger sm" data-act="kill" data-key="${k}" ${p.risk === 'self' ? 'disabled' : ''}>终止</button>`}
+      </div></td>
+    </tr>`);
+
+    if (open) html.push(detailHtml(p, k));
+  }
+  $('#tbody').innerHTML = html.join('');
+
+  const cur = document.querySelector(`th[data-sort="${S.sortKey}"] .arr`);
+  document.querySelectorAll('th .arr').forEach(a => a.textContent = '');
+  if (cur) cur.textContent = S.sortDir === 1 ? '▲' : '▼';
+
+  $('#updated-at').textContent = '更新于 ' + new Date(S.data.updatedAt).toLocaleTimeString('zh-CN');
+  $('#perf').textContent = `扫描 ${S.data.scanMs}ms · 轮询 ${S.interval / 1000}s · 快照缓存 1.2s`;
+}
+
+function detailHtml(p, k) {
+  const d = S.details.get(p.pid);
+  const info = d?.data;
+  const probe = S.probes.get(wkeyOf(p));
+  const sameProc = (S.data?.ports || []).filter(x => x.pid === p.pid);
+  const conns = p.conns || [];
+
+  const cmd = (!d || !d.at) ? '加载中…'
+    : d.data?.commandLine ? esc(d.data.commandLine)
+    : d.data?.error ? '获取失败：' + esc(d.data.error)
+    : '（无命令行信息，可能需要管理员权限）';
+  const exe = info?.executablePath || p.exe || '（不可获取）';
+  const parent = info?.parentPid ? `${info.parentName || '未知'} (PID ${info.parentPid})` : '—';
+  const created = info?.created ? new Date(info.created).toLocaleString('zh-CN') : '—';
+  const riskText = p.risk === 'self' ? 'Portboard 自身进程，不可终止'
+    : p.risk === 'blocked' ? '系统关键进程，默认拒绝终止'
+    : p.risk === 'caution' ? '谨慎操作：可能影响系统或桌面会话'
+    : '普通应用进程';
+
+  const connTable = conns.length
+    ? `<table class="mini"><thead><tr><th>远端</th><th>状态</th><th>客户端进程</th></tr></thead><tbody>
+        ${conns.slice(0, 8).map(c => `<tr><td>${esc(c.remote)}</td><td class="st ${c.state}">${c.state}</td><td class="st">${esc(c.proc || (c.pid ? 'PID ' + c.pid : '—'))}</td></tr>`).join('')}
+      </tbody></table>${conns.length > 8 ? `<div class="dval" style="margin-top:6px">另有 ${conns.length - 8} 条…</div>` : ''}`
+    : '<div class="dval">当前没有活跃连接</div>';
+
+  return `<tr class="detail" data-for="${k}"><td colspan="8"><div class="detail-in">
+    <div class="dgrid">
+      <div>
+        <div class="dk">命令行</div>
+        <pre class="dcmd">${cmd}</pre>
+        <div class="dk">进程信息</div>
+        <dl class="kv">
+          <dt>可执行</dt><dd>${esc(exe)}</dd>
+          <dt>父进程</dt><dd>${esc(parent)}</dd>
+          <dt>启动于</dt><dd>${esc(created)}</dd>
+          <dt>监听始于</dt><dd>${new Date(p.firstSeen).toLocaleString('zh-CN')}</dd>
+          <dt>风险</dt><dd>${riskText}</dd>
+        </dl>
+      </div>
+      <div>
+        <div class="dk">该进程占用端口 (${sameProc.length})</div>
+        <div class="chipset">${sameProc.map(x => `<span class="pchip ${x.port === p.port ? 'cur' : ''}">${x.port}/${x.proto}</span>`).join('')}</div>
+        ${sameProc.length > 1 ? `<div class="warnline">终止该进程会同时释放以上 ${sameProc.length} 个端口</div>` : ''}
+        <div class="dk">连接 (${conns.length})${p.clients ? ` · 客户端进程 ${p.clients}` : ''}</div>
+        ${connTable}
+        ${probe ? `<div class="probe">探活：${probe.reachable ? `TCP 可达 · ${probe.connectMs}ms` : '不可达'}${probe.protocol && probe.protocol !== 'TCP' ? ' · ' + probe.protocol : ''}${probe.http?.status ? ` · ${probe.http.status}` : ''}${probe.http?.server ? ` · ${esc(probe.http.server)}` : ''}${probe.http?.title ? `<br>标题：${esc(probe.http.title)}` : ''}${probe.note ? `<br>${esc(probe.note)}` : ''}</div>` : ''}
+      </div>
+    </div>
+    <div class="dactions">
+      <button class="btn sm" data-act="copy-cmd" data-key="${k}">复制 taskkill 命令</button>
+      <button class="btn sm" data-act="copy-pid" data-key="${k}">复制 PID</button>
+      <button class="btn sm" data-act="watch" data-key="${k}">${S.watch.has(wkeyOf(p)) ? '取消收藏' : '加入收藏'}</button>
+      ${p.proto === 'TCP' ? `<button class="btn sm" data-act="probe" data-key="${k}">重新探测</button>` : ''}
+    </div>
+  </div></td></tr>`;
+}
+
+// ---------- 详情懒加载 ----------
+async function ensureDetail(pid, k) {
+  const hit = S.details.get(pid);
+  if (hit && Date.now() - hit.at < 60000) return;
+  if (!hit) S.details.set(pid, { at: 0, data: null });
+  try {
+    const data = await api('/api/process/' + pid);
+    S.details.set(pid, { at: Date.now(), data });
+  } catch (e) {
+    S.details.set(pid, { at: Date.now(), data: { error: e.message } });
+  }
+  render();
+}
+
+// ---------- 表格交互 ----------
+const tbody = $('#tbody');
+tbody.addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) {
+    const tr = e.target.closest('tr.row');
+    if (tr) {
+      const k = tr.dataset.key;
+      S.expanded.has(k) ? S.expanded.delete(k) : S.expanded.add(k);
+      render();
+      const p = findPort(k);
+      if (p && S.expanded.has(k)) ensureDetail(p.pid, k);
+    }
+    return;
+  }
+  const k = btn.dataset.key;
+  const p = findPort(k);
+  if (!p) return;
+  const act = btn.dataset.act;
+
+  if (act === 'open') return window.open(`http://localhost:${p.port}`, '_blank');
+  if (act === 'copy') return copy(`http://localhost:${p.port}`, `已复制 http://localhost:${p.port}`);
+  if (act === 'copy-pid') return copy(String(p.pid), `已复制 PID ${p.pid}`);
+  if (act === 'copy-cmd') return copy(`taskkill /PID ${p.pid} /F /T`, '已复制 taskkill 命令');
+  if (act === 'detail') {
+    S.expanded.has(k) ? S.expanded.delete(k) : S.expanded.add(k);
+    render();
+    if (S.expanded.has(k)) ensureDetail(p.pid, k);
+    return;
+  }
+  if (act === 'watch') {
+    const wk = wkeyOf(p);
+    S.watch.has(wk) ? S.watch.delete(wk) : S.watch.add(wk);
+    localStorage.setItem('pb.watch', JSON.stringify([...S.watch]));
+    render();
+    return;
+  }
+  if (act === 'probe') {
+    const wk = wkeyOf(p);
+    btn.disabled = true; btn.textContent = '探测中';
+    try {
+      const r = await api(`/api/probe?port=${p.port}&proto=${p.proto}`);
+      S.probes.set(wk, r);
+      if (!r.reachable) toast(`${p.port}/${p.proto} 不可达：${r.note || ''}`, 'err');
+      else toast(`${p.port} 可达 ${r.connectMs}ms` + (r.http?.server ? ` · ${r.http.server}` : '') + (r.http?.title ? ` · ${r.http.title}` : ''), 'ok');
+      render();
+    } catch (err) { toast('探测失败：' + err.message, 'err'); btn.disabled = false; btn.textContent = '探测'; }
+    return;
+  }
+  if (act === 'kill') {
+    S.pending.add(p.pid);
+    render();
+    setTimeout(() => { if (S.pending.has(p.pid) && !S.forced.has(p.pid)) { S.pending.delete(p.pid); render(); } }, 6000);
+    return;
+  }
+  if (act === 'cancel') {
+    S.pending.delete(p.pid); S.forced.delete(p.pid); render(); return;
+  }
+  if (act === 'kill-force') {
+    S.forced.add(p.pid);
+    S.pending.add(p.pid);
+    doKill(p, true);
+    return;
+  }
+  if (act === 'kill-do') return doKill(p, false);
+});
+
+function findPort(k) {
+  const [proto, port] = k.split('/');
+  return (S.data?.ports || []).find(x => x.proto === proto && x.port === Number(port));
+}
+
+async function doKill(p, force) {
+  const same = (S.data?.ports || []).filter(x => x.pid === p.pid).length;
+  try {
+    const r = await api('/api/kill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pid: p.pid, port: p.port, proto: p.proto, force }),
+    });
+    S.pending.delete(p.pid); S.forced.delete(p.pid);
+    S.expanded.delete(keyOf(p));
+    toast(`已终止 ${r.name || 'PID ' + p.pid}（${r.mode === 'graceful' ? '优雅退出' : '强制'}），释放 ${r.affected.length} 个端口`, 'ok');
+    await refresh();
+  } catch (e) {
+    if (e.status === 409 && /不一致|属于/.test(e.message)) {
+      toast(e.message + '，已刷新', 'err');
+      S.pending.delete(p.pid);
+      await refresh();
+    } else {
+      toast('终止失败：' + e.message, 'err');
+      S.pending.delete(p.pid);
+      S.forced.delete(p.pid);
+      render();
+    }
+  }
+}
+
+async function copy(text, msg) {
+  try { await navigator.clipboard.writeText(text); toast(msg, 'ok'); }
+  catch { toast('复制失败，请手动复制：' + text, 'err'); }
+}
+
+function toast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  $('#toast-box').appendChild(el);
+  setTimeout(() => el.remove(), 3600);
+}
+
+// ---------- 工具栏 ----------
+document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', () => {
+  const k = th.dataset.sort;
+  if (S.sortKey === k) S.sortDir *= -1; else { S.sortKey = k; S.sortDir = 1; }
+  render();
+}));
+$('#q').addEventListener('input', e => { S.q = e.target.value; render(); });
+$('#f-proto').addEventListener('change', e => { S.fp = e.target.value; render(); });
+$('#f-scope').addEventListener('change', e => { S.fs = e.target.value; render(); });
+$('#f-state').addEventListener('change', e => { S.fst = e.target.value; render(); });
+$('#only-new').addEventListener('click', () => {
+  S.onlyNew = !S.onlyNew;
+  $('#only-new').classList.toggle('on', S.onlyNew);
+  render();
+});
+$('#only-watch').addEventListener('click', () => {
+  S.onlyWatch = !S.onlyWatch;
+  $('#only-watch').classList.toggle('on', S.onlyWatch);
+  render();
+});
+$('#hide-sys').addEventListener('click', () => {
+  S.hideSys = !S.hideSys;
+  $('#hide-sys').classList.toggle('on', S.hideSys);
+  render();
+});
+$('#export').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = '/api/export';
+  a.download = '';
+  a.click();
+  toast('已导出当前端口快照');
+});
+$('#banner-filter').addEventListener('click', () => {
+  S.onlyNew = true;
+  $('#only-new').classList.add('on');
+  $('#banner').hidden = true;
+  render();
+});
+$('#banner-close').addEventListener('click', () => { $('#banner').hidden = true; });
+
+// 暂停 / 间隔
+$('#pause').addEventListener('click', () => {
+  S.auto = !S.auto;
+  $('#pause').textContent = S.auto ? '暂停' : '继续';
+  $('#dot').className = 'dot ' + (S.auto ? 'live' : 'paused');
+  if (S.auto) refresh();
+});
+$('#interval').addEventListener('change', e => {
+  S.interval = Number(e.target.value);
+  S.countdown = S.interval / 1000;
+  render();
+});
+
+// 通知
+function syncNotifyBtn() {
+  const b = $('#notify');
+  const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+  b.textContent = S.notifyOn ? '新端口提醒 开' : '新端口提醒 关';
+  b.classList.toggle('danger', false);
+  if (S.notifyOn && perm === 'denied') b.textContent = '提醒被浏览器拒绝';
+}
+$('#notify').addEventListener('click', async () => {
+  if (!('Notification' in window)) return toast('当前浏览器不支持桌面通知', 'err');
+  if (S.notifyOn) { S.notifyOn = false; localStorage.setItem('pb.notify', '0'); syncNotifyBtn(); return; }
+  const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if (perm !== 'granted') return toast('通知权限未授予', 'err');
+  S.notifyOn = true;
+  localStorage.setItem('pb.notify', '1');
+  syncNotifyBtn();
+  toast('已开启新端口提醒', 'ok');
+});
+
+// 变更记录抽屉
+async function openDrawer() {
+  $('#drawer').classList.add('on');
+  const box = $('#ev-list');
+  box.innerHTML = '<div class="ev"><div class="t">…</div><div class="b">加载中</div></div>';
+  try {
+    const r = await api('/api/events?limit=80');
+    if (!r.events.length) { box.innerHTML = '<div class="ev"><div class="t">—</div><div class="b">本次会话尚无变更</div></div>'; return; }
+    box.innerHTML = r.events.map(e => {
+      const t = new Date(e.t);
+      const hh = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0') + ':' + String(t.getSeconds()).padStart(2, '0');
+      return `<div class="ev ${e.type}"><div class="t">${hh}</div><div class="b">
+        <b>${e.port}/${e.proto}</b> ${e.type === 'open' ? '开始监听' : '停止监听'}
+        <br><span style="color:var(--ink-3)">${esc(e.process)} · PID ${e.pid} · ${SCOPE_TEXT[e.scope] || e.scope}${e.ephemeral ? ' · 临时端口' : ''}</span>
+      </div></div>`;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = `<div class="ev"><div class="t">!</div><div class="b">读取失败：${esc(e.message)}</div></div>`;
+  }
+}
+$('#events-btn').addEventListener('click', openDrawer);
+$('#drawer-close').addEventListener('click', () => $('#drawer').classList.remove('on'));
+
+// 键盘
+document.addEventListener('keydown', e => {
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '');
+  if (e.key === '/' && !typing) { e.preventDefault(); $('#q').focus(); return; }
+  if (e.key === 'r' && !typing && !e.metaKey && !e.ctrlKey) { refresh(true); return; }
+  if (e.key === 'Escape') {
+    if ($('#drawer').classList.contains('on')) { $('#drawer').classList.remove('on'); return; }
+    if (document.activeElement === $('#q') && S.q) { $('#q').value = ''; S.q = ''; render(); return; }
+    S.expanded.clear(); S.pending.clear(); render();
+  }
+});
+
+// 系统信息
+function renderSys() {
+  const s = S.sys;
+  if (!s) return;
+  const up = s.uptime, d = Math.floor(up / 86400), h = Math.floor(up % 86400 / 3600), m = Math.floor(up % 3600 / 60);
+  const uptime = d ? `${d}d ${h}h` : `${h}h ${m}m`;
+  $('#sys-info').innerHTML = `<b>${esc(s.hostname)}</b> · ${esc(s.platform)}<br>${s.cpus} 核 · 已运行 ${uptime} · ${s.elevated ? '<b style="color:#067647">管理员</b>' : '<b style="color:#B54708">普通权限</b>'}`;
+  $('#ver').textContent = 'v' + s.version;
+}
+
+// 定时器
+setInterval(() => {
+  if (!S.auto) return;
+  S.countdown--;
+  if (S.countdown <= 0) refresh();
+}, 1000);
+setInterval(() => { if (S.sys) renderSys(); }, 30000);
+
+syncNotifyBtn();
+refresh().then(renderSys);
+</script>
+</body>
+</html>

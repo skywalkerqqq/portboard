@@ -1,0 +1,13 @@
+{
+  "name": "portboard",
+  "version": "2.0.0",
+  "private": true,
+  "description": "本机端口监听工作台（Windows / 零依赖）",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs"
+  },
+  "engines": { "node": ">=18" }
+}
